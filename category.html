@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LEKKA - Categories</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-light">
+  <div class="container my-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h4 class="fw-bold">Category Review</h4>
+      <small class="text-muted" id="dateRangeDisplay"></small>
+    </div>
+
+    <!-- Summary Section -->
+    <div class="row text-center mb-4">
+      <div class="col">
+        <div class="card p-2">
+          <h6>Income</h6>
+          <h5 class="text-success">₹<span id="incomeTotal">0</span></h5>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card p-2">
+          <h6>Expense</h6>
+          <h5 class="text-danger">₹<span id="expenseTotal">0</span></h5>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card p-2">
+          <h6>Balance</h6>
+          <h5 class="text-dark">₹<span id="balanceTotal">0</span></h5>
+        </div>
+      </div>
+    </div>
+
+    <!-- Export + Add Button -->
+    <div class="mb-3 d-flex justify-content-between">
+      <button class="btn btn-outline-secondary btn-sm" onclick="exportToCSV()">
+        <i class="bi bi-download"></i> Export CSV
+      </button>
+      <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addTransactionModal">
+        <i class="bi bi-plus-lg"></i> Add Transaction
+      </button>
+    </div>
+
+    <!-- Tabs -->
+    <nav>
+      <div class="nav nav-tabs" id="nav-tab" role="tablist">
+        <button class="nav-link active" id="nav-transactions-tab" data-bs-toggle="tab" data-bs-target="#nav-transactions" type="button" role="tab">Transactions</button>
+        <button class="nav-link" id="nav-categories-tab" data-bs-toggle="tab" data-bs-target="#nav-categories" type="button" role="tab">Categories</button>
+        <button class="nav-link" id="nav-merchants-tab" data-bs-toggle="tab" data-bs-target="#nav-merchants" type="button" role="tab">Merchants</button>
+      </div>
+    </nav>
+    <div class="tab-content mt-3" id="nav-tabContent">
+      <div class="tab-pane fade show active" id="nav-transactions" role="tabpanel">
+        <div class="list-group" id="transactionsList"></div>
+      </div>
+      <div class="tab-pane fade" id="nav-categories" role="tabpanel">
+        <canvas id="mainRadarChart" height="300"></canvas>
+        <div class="row mt-4" id="incomeCategoryCards"></div>
+        <div class="row mt-3" id="expenseCategoryCards"></div>
+      </div>
+      <div class="tab-pane fade" id="nav-merchants" role="tabpanel">
+        <div class="list-group" id="merchantList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Transaction Modal -->
+  <div class="modal fade" id="transactionModal" tabindex="-1" aria-labelledby="transactionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="transactionModalLabel">Transaction</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="transactionModalBody"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" onclick="enableTransactionEdit()">Edit</button>
+          <button type="button" class="btn btn-primary d-none" id="saveEditBtn" onclick="saveEditedTransaction()">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Transaction Modal -->
+  <div class="modal fade" id="addTransactionModal" tabindex="-1" aria-labelledby="addTransactionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="addTransactionModalLabel">Add Transaction</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="addTransactionFormContainer">
+          <!-- Existing Add Transaction UI already included here -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="utils.js"></script>
+  <script src="category.js"></script>
+</body>
+</html>

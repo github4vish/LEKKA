@@ -1,151 +1,193 @@
+// dashboard.js - Modular JavaScript for LEKKA Dashboard
+// Requires utils.js to be loaded before this script
 
+// 📊 Aggregation by filter
+const aggregators = {
+  month: () => aggregateBy("month", 12, tx => new Date(tx.date).getMonth()),
+  day: () => aggregateBy("day", 7, tx => new Date(tx.date).getDay()),
+  week: () => aggregateBy("week", 4, tx => Math.min(Math.floor((new Date(tx.date).getDate() - 1) / 7), 3)),
+  quarter: () => aggregateBy("quarter", 4, tx => Math.floor(new Date(tx.date).getMonth() / 3)),
+  custom: (start, end) => aggregateByDateRange(start, end)
+};
 
-document.addEventListener("DOMContentLoaded", function () {
-    loadTransactions(); // Load transactions when page loads
-    updateReviewButton(); // Set review button text dynamically
-});
+function aggregateBy(type, count, groupFn) {
+  const txs = getTransactions();
+  const expense = Array(count).fill(0);
+  const income = Array(count).fill(0);
 
-// 🔍 Search Transactions Function (Updates Modal Table)
-function searchTransactions() {
-    let keyword = document.getElementById("searchInput").value.toLowerCase();
-    let transactions = document.querySelectorAll("#transactionsBody tr");
-    let searchResults = document.getElementById("searchResults");
-
-    searchResults.innerHTML = ""; // Clear previous results
-
-    transactions.forEach(row => {
-        let text = row.innerText.toLowerCase();
-        if (text.includes(keyword)) {
-            searchResults.appendChild(row.cloneNode(true)); // Show only matching rows
-        }
-    });
-
-    if (searchResults.innerHTML === "") {
-        searchResults.innerHTML = `<tr><td colspan="4" class="text-center text-muted">No transactions found</td></tr>`;
+  txs.forEach(tx => {
+    const index = groupFn(tx);
+    if (index >= 0 && index < count) {
+      if (tx.type === "Expense") expense[index] += +tx.amount;
+      if (tx.type === "Income") income[index] += +tx.amount;
     }
+  });
+
+  return { labels: getLabels(type), expense, income };
 }
 
+function aggregateByDateRange(start, end) {
+  const txs = filterTransactionsInRange(getTransactions(), start, end);
+  const grouped = {};
 
-// 📅 Dynamic Review Button (Month + Year)
-function updateReviewButton() {
-    const currentDate = new Date();
-    const month = currentDate.toLocaleString("default", { month: "short" }); // Apr
-    const year = currentDate.getFullYear().toString().slice(-2); // 25
-    document.getElementById("reviewButton").innerText = `Add Review (${month} '${year})`;
+  txs.forEach(tx => {
+    const key = formatDate(tx.date);
+    if (!grouped[key]) grouped[key] = { expense: 0, income: 0 };
+    if (tx.type === "Expense") grouped[key].expense += +tx.amount;
+    if (tx.type === "Income") grouped[key].income += +tx.amount;
+  });
+
+  const labels = Object.keys(grouped).sort();
+  return {
+    labels,
+    expense: labels.map(d => grouped[d].expense),
+    income: labels.map(d => grouped[d].income)
+  };
 }
 
-
-
-function loadTransactions() {
-    let transactions = JSON.parse(localStorage.getItem("transactions")) || [];
-    let tableBody = document.getElementById("transactionsBody");
-    tableBody.innerHTML = ""; // Clear existing entries
-
-    transactions.forEach(trx => {
-        let row = `<tr>
-            <td>${trx.date}</td>
-            <td>${trx.category}</td>
-            <td>${trx.type === "Income" ? "+" : "-"} ₹${trx.amount}</td>
-            <td>${trx.paidTo}</td>
-        </tr>`;
-        tableBody.innerHTML += row;
-    });
+function getLabels(type) {
+  switch (type) {
+    case "month": return ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    case "day": return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    case "week": return ["Week 1", "Week 2", "Week 3", "Week 4"];
+    case "quarter": return ["Q1", "Q2", "Q3", "Q4"];
+    default: return [];
+  }
 }
 
+let expenseIncomeChart;
+function initializeChart() {
+  const ctx = document.getElementById("expenseIncomeChart").getContext("2d");
+  const { labels, expense, income } = aggregators.month();
+  const currentMonth = new Date().getMonth();
 
-
-// Sample Data for Expense & Income (You can fetch this from localStorage)
-let monthlyExpense = [10000, 12000, 8000, 9500, 11000, 13000, 7000, 12500, 14000, 11500, 13500, 12000];
-let monthlyIncome = [20000, 25000, 23000, 24000, 26000, 27000, 22000, 28000, 29000, 25000, 27500, 26000];
-
-// Get Current Month (0-based index)
-const currentMonthIndex = new Date().getMonth();
-
-// Get Chart Context
-const ctx = document.getElementById("expenseIncomeChart").getContext("2d");
-
-// Create Chart
-let expenseIncomeChart = new Chart(ctx, {
+  expenseIncomeChart = new Chart(ctx, {
     type: "bar",
     data: {
-        labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
-        datasets: [
-            {
-                label: "Expense",
-                data: monthlyExpense,
-                backgroundColor: (ctx) => ctx.dataIndex === currentMonthIndex ? "red" : "rgba(255, 99, 132, 0.6)", // Highlight current month
-                borderColor: "rgba(255, 99, 132, 1)",
-                borderWidth: 1
-            },
-            {
-                label: "Income",
-                data: monthlyIncome,
-                type: "line",
-                borderColor: "rgba(54, 162, 235, 1)",
-                backgroundColor: "rgba(54, 162, 235, 0.2)",
-                borderWidth: 2,
-                tension: 0.3
-            }
-        ]
+      labels,
+      datasets: [
+        {
+          label: "Expense",
+          data: expense,
+          backgroundColor: (ctx) => ctx.dataIndex === currentMonth ? "red" : "rgba(255, 99, 132, 0.6)",
+          borderColor: "rgba(255, 99, 132, 1)",
+          borderWidth: 1
+        },
+        {
+          label: "Income",
+          data: income,
+          type: "line",
+          borderColor: "rgba(54, 162, 235, 1)",
+          backgroundColor: "rgba(54, 162, 235, 0.2)",
+          borderWidth: 2,
+          tension: 0.3
+        }
+      ]
     },
     options: {
-        responsive: true,
-        scales: {
-            y: { beginAtZero: true }
-        },
-        plugins: {
-            legend: { display: true }
-        }
+      responsive: true,
+      scales: { y: { beginAtZero: true } },
+      plugins: { legend: { display: true } }
     }
-});
+  });
+  updateSummary("month");
+}
 
-// Function to Update Chart Data Based on Filter
 function updateChart() {
-    let filterType = document.getElementById("filterSelect").value;
+  const filter = document.getElementById("filterSelect").value;
+  const customStart = document.getElementById("startDate")?.value;
+  const customEnd = document.getElementById("endDate")?.value;
 
-    if (filterType === "month") {
-        expenseIncomeChart.data.labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        expenseIncomeChart.data.datasets[0].data = monthlyExpense;
-        expenseIncomeChart.data.datasets[1].data = monthlyIncome;
-    } else if (filterType === "day") {
-        expenseIncomeChart.data.labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-        expenseIncomeChart.data.datasets[0].data = [500, 600, 450, 700, 650, 800, 750]; // Sample daily expenses
-        expenseIncomeChart.data.datasets[1].data = [2000, 2200, 2100, 2500, 2400, 2600, 2300]; // Sample daily income
-    } else if (filterType === "week") {
-        expenseIncomeChart.data.labels = ["Week 1", "Week 2", "Week 3", "Week 4"];
-        expenseIncomeChart.data.datasets[0].data = [3000, 3200, 2800, 3100]; // Sample weekly expenses
-        expenseIncomeChart.data.datasets[1].data = [9000, 10000, 9500, 9800]; // Sample weekly income
-    } else if (filterType === "quarter") {
-        expenseIncomeChart.data.labels = ["Q1", "Q2", "Q3", "Q4"];
-        expenseIncomeChart.data.datasets[0].data = [12000, 14000, 13000, 12500]; // Sample quarterly expenses
-        expenseIncomeChart.data.datasets[1].data = [50000, 52000, 51000, 53000]; // Sample quarterly income
-    }
+  const { labels, expense, income } =
+    filter === "custom" && customStart && customEnd
+      ? aggregators.custom(customStart, customEnd)
+      : aggregators[filter]();
 
-    // Update the chart
-    expenseIncomeChart.update();
+  expenseIncomeChart.data.labels = labels;
+  expenseIncomeChart.data.datasets[0].data = expense;
+  expenseIncomeChart.data.datasets[1].data = income;
+  expenseIncomeChart.update();
 
-    // Update Selected Month's Expense & Income
-    document.getElementById("expenseValue").innerText = monthlyExpense[currentMonthIndex];
-    document.getElementById("incomeValue").innerText = monthlyIncome[currentMonthIndex];
+  updateSummary(filter);
 }
 
-// Function to Toggle Expense Chart
-function toggleExpense() {
-    let expenseDataset = expenseIncomeChart.data.datasets[0];
-    expenseDataset.hidden = !expenseDataset.hidden;
-    expenseIncomeChart.update();
+function updateSummary(filter) {
+  const now = new Date();
+  let index = now.getMonth();
+
+  if (filter === "day") index = now.getDay();
+  if (filter === "week") index = Math.min(Math.floor((now.getDate() - 1) / 7), 3);
+  if (filter === "quarter") index = Math.floor(now.getMonth() / 3);
+
+  const expenses = expenseIncomeChart.data.datasets[0].data;
+  const incomes = expenseIncomeChart.data.datasets[1].data;
+
+  document.getElementById("expenseValue").innerText = expenses[index]?.toFixed(2) || 0;
+  document.getElementById("incomeValue").innerText = incomes[index]?.toFixed(2) || 0;
 }
 
-// Function to Toggle Income Chart
+function searchTransactions() {
+  const keyword = document.getElementById("searchInput").value.toLowerCase();
+  const results = document.getElementById("searchResults");
+  const transactions = getTransactions();
+
+  results.innerHTML = "";
+
+  const filtered = transactions.filter(tx =>
+    tx.category?.toLowerCase().includes(keyword) ||
+    tx.paidTo?.toLowerCase().includes(keyword) ||
+    tx.date?.toLowerCase().includes(keyword) ||
+    tx.amount.toString().includes(keyword)
+  );
+
+  if (filtered.length === 0) {
+    results.innerHTML = `<tr><td colspan="4" class="text-center text-muted">No transactions found</td></tr>`;
+  } else {
+    filtered.forEach(tx => {
+      results.innerHTML += `
+        <tr>
+          <td>${tx.date}</td>
+          <td>${tx.category}</td>
+          <td>${tx.type === "Income" ? "+" : "-"} ₹${tx.amount}</td>
+          <td>${tx.paidTo}</td>
+        </tr>`;
+    });
+  }
+}
+
+function updateReviewButton() {
+  const now = new Date();
+  const month = now.toLocaleString("default", { month: "short" });
+  const year = now.getFullYear().toString().slice(-2);
+
+  const btn = document.getElementById("reviewButton");
+  btn.innerText = `Add Review (${month} '${year})`;
+  btn.onclick = () => {
+    const filter = document.getElementById("filterSelect").value;
+    const range = getDateRangeForFilter(filter);
+    window.location.href = `category.html?filter=${filter}&from=${range.from}&to=${range.to}`;
+  };
+}
+
+function onFilterChange() {
+  const isCustom = document.getElementById("filterSelect").value === "custom";
+  document.getElementById("customDateRange").style.display = isCustom ? "flex" : "none";
+  if (!isCustom) updateChart();
+}
+
 function toggleIncome() {
-    let incomeDataset = expenseIncomeChart.data.datasets[1];
-    incomeDataset.hidden = !incomeDataset.hidden;
-    expenseIncomeChart.update();
+  const income = expenseIncomeChart.data.datasets[1];
+  income.hidden = !income.hidden;
+  expenseIncomeChart.update();
 }
 
-// Load Default Selected Month's Data
-document.getElementById("expenseValue").innerText = monthlyExpense[currentMonthIndex];
-document.getElementById("incomeValue").innerText = monthlyIncome[currentMonthIndex];
+function toggleExpense() {
+  const expense = expenseIncomeChart.data.datasets[0];
+  expense.hidden = !expense.hidden;
+  expenseIncomeChart.update();
+}
 
-
-    
+document.addEventListener("DOMContentLoaded", () => {
+  initializeChart();
+  updateReviewButton();
+});
