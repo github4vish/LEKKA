@@ -6,7 +6,8 @@ document.getElementById("nav-merchants-tab").addEventListener("click", renderMer
 
 document.getElementById("nav-transactions-tab").addEventListener("click", renderTransactionsList);
 
-
+// Load default categories on page load
+window.addEventListener('DOMContentLoaded', loadCategories);
 
 function renderTransactionsList() {
   const transactions = JSON.parse(localStorage.getItem("transactions")) || [];
@@ -26,7 +27,6 @@ function renderTransactionsList() {
 
     const isExpense = tx.type === "Expense";
     const arrowIcon = isExpense ? "bi-arrow-up-circle text-danger" : "bi-arrow-down-circle text-success";
-    const sign = isExpense ? "-" : "+";
     const amountClass = isExpense ? "text-danger" : "text-success";
 
     const item = document.createElement("div");
@@ -34,9 +34,9 @@ function renderTransactionsList() {
 
     item.innerHTML = `
       <div class="d-flex align-items-center">
-        <i class="bi bi-tag me-2 fs-5 text-primary"></i>
+        <i class="bi ${tx.icon || 'bi-tag'} me-2 fs-5 text-primary"></i>
         <div>
-          <div class="fw-semibold">${tx.category}</div>
+          <div class="fw-semibold">${tx.paidTo || tx.receivedFrom || "Unknown"}</div>
         </div>
       </div>
       <div class="text-end">
@@ -47,11 +47,52 @@ function renderTransactionsList() {
         </div>
       </div>
     `;
+
     list.appendChild(item);
   });
 }
 
 
+function loadCategories() {
+  const type = document.getElementById("transactionType").value;
+  const container = document.getElementById("categoryButtons");
+
+  // Update labels based on transaction type
+  document.getElementById("amountLabel").textContent = type === "Income" ? "Amount Credited" : "Amount Spent";
+  document.getElementById("paidToLabel").textContent = type === "Income" ? "Received From" : "Paid To";
+
+  const incomeCategories = [
+      "A/C Transfer", "Bank Deposit", "Bill Payment", "Business", "Credit", "Interest",
+      "Investment", "Loan", "Recharge", "Refund", "Reimbursement", "Rewards", "Salary"
+  ];
+
+  const expenseCategories = [
+      "Bills", "EMI", "Entertainment", "Food & Drinks", "Fuel", "Groceries",
+      "Health", "Investment", "Other", "Shopping", "Transfer", "Travel", "Gift", "Service"
+  ];
+
+  const icons = {
+      "Bills": "bi-receipt", "EMI": "bi-credit-card", "Entertainment": "bi-film", 
+      "Food & Drinks": "bi-cup-straw", "Fuel": "bi-fuel-pump", "Groceries": "bi-basket",
+      "Health": "bi-heart-pulse", "Investment": "bi-graph-up-arrow", "Other": "bi-tags", 
+      "Shopping": "bi-bag", "Transfer": "bi-arrow-left-right", "Travel": "bi-airplane", 
+      "Gift": "bi-gift", "Service": "bi-wrench", "Salary": "bi-currency-dollar", 
+      "Business": "bi-briefcase", "Loan": "bi-bank", "Refund": "bi-arrow-repeat", 
+      "Rewards": "bi-trophy", "Credit": "bi-piggy-bank"
+  };
+
+  const categories = type === "Income" ? incomeCategories : expenseCategories;
+
+  container.innerHTML = "";
+  categories.forEach(cat => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn btn-outline-primary";
+      btn.setAttribute("onclick", "selectCategory(this)");
+      btn.innerHTML = `<i class="bi ${icons[cat] || 'bi-tag'}"></i> ${cat}`;
+      container.appendChild(btn);
+  });
+}
 
 
 
@@ -95,85 +136,144 @@ function renderMerchants() {
 
 
 function renderCategoryBreakdown() {
-    const transactions = JSON.parse(localStorage.getItem("transactions")) || [];
-  
-    // Filter only expenses
-    const expenseTx = transactions.filter(tx => tx.type === "Expense");
-  
-    // Group by category
-    const categoryTotals = {};
-    let totalExpense = 0;
-    expenseTx.forEach(tx => {
-      const cat = tx.category;
-      const amt = parseFloat(tx.amount) || 0;
-      categoryTotals[cat] = (categoryTotals[cat] || 0) + amt;
-      totalExpense += amt;
-    });
-  
-    // Generate radial chart
-    const ctx = document.getElementById("categoryRadialChart").getContext("2d");
-    new Chart(ctx, {
+  const transactions = JSON.parse(localStorage.getItem("transactions")) || [];
+
+  const incomeTx = transactions.filter(tx => tx.type === "Income");
+  const expenseTx = transactions.filter(tx => tx.type === "Expense");
+
+  const allCategories = new Set();
+  const incomeMap = {};
+  const expenseMap = {};
+
+  incomeTx.forEach(tx => {
+    const cat = tx.category;
+    const amt = parseFloat(tx.amount) || 0;
+    allCategories.add(cat);
+    incomeMap[cat] = (incomeMap[cat] || 0) + amt;
+  });
+
+  expenseTx.forEach(tx => {
+    const cat = tx.category;
+    const amt = parseFloat(tx.amount) || 0;
+    allCategories.add(cat);
+    expenseMap[cat] = (expenseMap[cat] || 0) + amt;
+  });
+
+  const labels = Array.from(allCategories);
+  const incomeData = labels.map(cat => incomeMap[cat] || 0);
+  const expenseData = labels.map(cat => expenseMap[cat] || 0);
+
+  const ctxRadar = document.getElementById('mainRadarChart').getContext('2d');
+  if (window.mainRadarChartInstance) {
+    window.mainRadarChartInstance.destroy();
+  }
+  window.mainRadarChartInstance = new Chart(ctxRadar, {
+    type: 'radar',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Income',
+          data: incomeData,
+          backgroundColor: 'rgba(13, 110, 253, 0.2)',
+          borderColor: '#0d6efd',
+          borderWidth: 2
+        },
+        {
+          label: 'Expense',
+          data: expenseData,
+          backgroundColor: 'rgba(220, 53, 69, 0.2)',
+          borderColor: '#dc3545',
+          borderWidth: 2
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        r: {
+          angleLines: { display: true },
+          suggestedMin: 0,
+          suggestedMax: Math.max(...incomeData, ...expenseData, 100)
+        }
+      },
+      plugins: {
+        legend: {
+          position: 'top'
+        }
+      }
+    }
+  });
+
+  // Render Category Cards
+  const totalIncome = incomeData.reduce((a, b) => a + b, 0);
+  const totalExpense = expenseData.reduce((a, b) => a + b, 0);
+  const container = document.getElementById("categoryCards");
+  container.innerHTML = "";
+
+  labels.forEach((cat, i) => {
+    const incomeAmt = incomeMap[cat] || 0;
+    const expenseAmt = expenseMap[cat] || 0;
+
+    const incomePercentage = totalIncome ? ((incomeAmt / totalIncome) * 100).toFixed(1) : 0;
+    const expensePercentage = totalExpense ? ((expenseAmt / totalExpense) * 100).toFixed(1) : 0;
+
+    const card = document.createElement("div");
+    card.className = "col-md-6 mb-3";
+    card.innerHTML = `
+      <div class="card shadow-sm h-100">
+        <div class="card-body text-center">
+          <h6 class="mb-1">${cat}</h6>
+          <div class="row">
+            <div class="col-6">
+              <canvas id="mini-income-${cat}" width="80" height="80"></canvas>
+              <small class="text-success">Income: ₹${incomeAmt.toFixed(2)} (${incomePercentage}%)</small>
+            </div>
+            <div class="col-6">
+              <canvas id="mini-expense-${cat}" width="80" height="80"></canvas>
+              <small class="text-danger">Expense: ₹${expenseAmt.toFixed(2)} (${expensePercentage}%)</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    container.appendChild(card);
+
+    // Mini charts
+    const incomeCtx = document.getElementById(`mini-income-${cat}`).getContext("2d");
+    new Chart(incomeCtx, {
       type: 'doughnut',
       data: {
-        labels: Object.keys(categoryTotals),
+        labels: [cat, "Remaining"],
         datasets: [{
-          data: Object.values(categoryTotals),
-          backgroundColor: [
-            '#ff6384', '#36a2eb', '#ffcd56', '#4bc0c0',
-            '#9966ff', '#ff9f40', '#c9cbcf', '#e67e22',
-            '#2ecc71', '#f39c12', '#1abc9c', '#e74c3c'
-          ]
+          data: [incomeAmt, totalIncome - incomeAmt],
+          backgroundColor: ['#0d6efd', '#e0e0e0']
         }]
       },
       options: {
-        plugins: {
-          title: {
-            display: true,
-            text: 'Expense Breakdown by Category'
-          }
-        }
+        plugins: { legend: { display: false } },
+        cutout: "70%"
       }
     });
-  
-    // Render Category Cards
-    const container = document.getElementById("categoryCards");
-    container.innerHTML = "";
-    Object.entries(categoryTotals).forEach(([cat, amt]) => {
-      const percentage = ((amt / totalExpense) * 100).toFixed(1);
-      const card = document.createElement("div");
-      card.className = "col-md-4 mb-3";
-      card.innerHTML = `
-        <div class="card shadow-sm h-100">
-          <div class="card-body text-center">
-            <canvas id="mini-${cat}" width="100" height="100"></canvas>
-            <h6 class="mt-2">${cat}</h6>
-            <p class="mb-0">₹${amt.toFixed(2)} / ₹${totalExpense.toFixed(2)} (${percentage}%)</p>
-          </div>
-        </div>
-      `;
-      container.appendChild(card);
-  
-      // Mini radial chart per category
-      const miniCtx = document.getElementById(`mini-${cat}`).getContext("2d");
-      new Chart(miniCtx, {
-        type: 'doughnut',
-        data: {
-          labels: [cat, "Remaining"],
-          datasets: [{
-            data: [amt, totalExpense - amt],
-            backgroundColor: ['#36a2eb', '#e0e0e0']
-          }]
-        },
-        options: {
-          plugins: {
-            legend: { display: false }
-          },
-          cutout: "70%",
-        }
-      });
+
+    const expenseCtx = document.getElementById(`mini-expense-${cat}`).getContext("2d");
+    new Chart(expenseCtx, {
+      type: 'doughnut',
+      data: {
+        labels: [cat, "Remaining"],
+        datasets: [{
+          data: [expenseAmt, totalExpense - expenseAmt],
+          backgroundColor: ['#dc3545', '#e0e0e0']
+        }]
+      },
+      options: {
+        plugins: { legend: { display: false } },
+        cutout: "70%"
+      }
     });
-  }
-  
+  });
+}
+
 
 
 function exportToCSV() {
@@ -202,46 +302,44 @@ function exportToCSV() {
 
 
 
-// Dummy Data
-   let transactions = [
-    { date: '2025-03-29', desc: 'Salary', amount: 1500, type: 'Income' },
-    { date: '2025-03-28', desc: 'Groceries', amount: -200, type: 'Expense' }
-];
-
 function saveTransaction() {
-    // Get form values
-    let type = document.querySelector(".modal select").value;
-    let amount = document.querySelector(".modal input[type='number']").value;
-    let date = document.querySelector(".modal input[type='date']").value;
-    let paidTo = document.querySelector(".modal input[type='text']").value;
-    let category = document.querySelector(".modal .btn-outline-primary.active")?.innerText || "Other";
+  // Get form values
+  let type = document.querySelector(".modal select").value;
+  let amount = document.querySelector(".modal input[type='number']").value;
+  let date = document.querySelector(".modal input[type='date']").value;
+  let paidTo = document.querySelector(".modal input[type='text']").value;
+  let categoryBtn = document.querySelector(".modal .btn-outline-primary.active");
+  let category = categoryBtn?.innerText.trim() || "Other";
 
-    if (!amount || !date || !paidTo) {
-        alert("Please fill all required fields!");
-        return;
-    }
+  // Get icon class from <i> inside the button
+  let icon = categoryBtn ? categoryBtn.querySelector("i").className : "bi bi-tag";
 
-    // Create transaction object
-    let transaction = { type, amount, date, paidTo, category };
+  if (!amount || !date || !paidTo) {
+      alert("Please fill all required fields!");
+      return;
+  }
 
-    // Get existing transactions from localStorage
-    let transactions = JSON.parse(localStorage.getItem("transactions")) || [];
+  // Create transaction object
+  let transaction = { type, amount, date, paidTo, category, icon };
 
-    // Add new transaction
-    transactions.unshift(transaction);
+  // Get existing transactions from localStorage
+  let transactions = JSON.parse(localStorage.getItem("transactions")) || [];
 
-    // Keep only the 10 most recent transactions
-    transactions = transactions.slice(0, 10);
+  // Add new transaction
+  transactions.unshift(transaction);
 
-    // Save back to localStorage
-    localStorage.setItem("transactions", JSON.stringify(transactions));
+  // Keep only the 10 most recent transactions
+  transactions = transactions.slice(0, 10);
 
-    // Reload the table
-    loadTransactions();
+  // Save back to localStorage
+  localStorage.setItem("transactions", JSON.stringify(transactions));
 
-    // Close the modal
-    var modal = bootstrap.Modal.getInstance(document.getElementById('addTransactionModal'));
-    modal.hide();
+  // Reload the table
+  loadTransactions();
+
+  // Close the modal
+  const modal = bootstrap.Modal.getInstance(document.getElementById('addTransactionModal'));
+  modal.hide();
 }
 
 
