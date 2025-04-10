@@ -99,37 +99,47 @@ function loadCategories() {
 function renderMerchants() {
   const transactions = JSON.parse(localStorage.getItem("transactions")) || [];
 
-  // Filter only expenses
-  const expenses = transactions.filter(tx => tx.type === "Expense");
+  const merchantTotals = {
+    Income: {},
+    Expense: {}
+  };
 
-  // Group by 'paidTo'
-  const merchantTotals = {};
-  expenses.forEach(tx => {
+  transactions.forEach(tx => {
+    const type = tx.type;
     const name = tx.paidTo?.trim();
     const amount = parseFloat(tx.amount);
     if (name && !isNaN(amount)) {
-      merchantTotals[name] = (merchantTotals[name] || 0) + amount;
+      merchantTotals[type][name] = (merchantTotals[type][name] || 0) + amount;
     }
   });
 
-  // Render merchants only if they exist
   const container = document.getElementById("merchantList");
   container.innerHTML = "";
 
-  if (Object.keys(merchantTotals).length === 0) {
-    container.innerHTML = `<div class="text-muted">No merchants with recorded expenses.</div>`;
-    return;
-  }
+  const renderGroup = (label, data, colorClass) => {
+    if (Object.keys(data).length === 0) return;
+    
 
-  Object.entries(merchantTotals).forEach(([name, total]) => {
-    const item = document.createElement("div");
-    item.className = "list-group-item d-flex justify-content-between align-items-center";
-    item.innerHTML = `
-      <span>${name}</span>
-      <span class="fw-bold text-success">₹${total.toFixed(2)}</span>
-    `;
-    container.appendChild(item);
-  });
+    Object.entries(data).forEach(([name, total]) => {
+      const item = document.createElement("div");
+      item.className = "list-group-item d-flex justify-content-between align-items-center";
+      item.innerHTML = `
+        <span>${name}</span>
+        <span class="fw-bold ${colorClass}">₹${total.toFixed(2)}</span>
+      `;
+      container.appendChild(item);
+    });
+  };
+
+  renderGroup("Income", merchantTotals.Income, "text-success");
+  renderGroup("Expense", merchantTotals.Expense, "text-danger");
+
+  if (
+    Object.keys(merchantTotals.Income).length === 0 &&
+    Object.keys(merchantTotals.Expense).length === 0
+  ) {
+    container.innerHTML = `<div class="text-muted">No merchants with recorded transactions.</div>`;
+  }
 }
 
 
@@ -141,27 +151,25 @@ function renderCategoryBreakdown() {
   const incomeTx = transactions.filter(tx => tx.type === "Income");
   const expenseTx = transactions.filter(tx => tx.type === "Expense");
 
-  const allCategories = new Set();
   const incomeMap = {};
   const expenseMap = {};
 
   incomeTx.forEach(tx => {
     const cat = tx.category;
     const amt = parseFloat(tx.amount) || 0;
-    allCategories.add(cat);
     incomeMap[cat] = (incomeMap[cat] || 0) + amt;
   });
 
   expenseTx.forEach(tx => {
     const cat = tx.category;
     const amt = parseFloat(tx.amount) || 0;
-    allCategories.add(cat);
     expenseMap[cat] = (expenseMap[cat] || 0) + amt;
   });
 
-  const labels = Array.from(allCategories);
-  const incomeData = labels.map(cat => incomeMap[cat] || 0);
-  const expenseData = labels.map(cat => expenseMap[cat] || 0);
+  const incomeLabels = Object.keys(incomeMap);
+  const incomeData = incomeLabels.map(cat => incomeMap[cat]);
+  const expenseLabels = Object.keys(expenseMap);
+  const expenseData = expenseLabels.map(cat => expenseMap[cat]);
 
   const ctxRadar = document.getElementById('mainRadarChart').getContext('2d');
   if (window.mainRadarChartInstance) {
@@ -170,18 +178,18 @@ function renderCategoryBreakdown() {
   window.mainRadarChartInstance = new Chart(ctxRadar, {
     type: 'radar',
     data: {
-      labels: labels,
+      labels: [...new Set([...incomeLabels, ...expenseLabels])],
       datasets: [
         {
           label: 'Income',
-          data: incomeData,
+          data: [...new Set([...incomeLabels, ...expenseLabels])].map(cat => incomeMap[cat] || 0),
           backgroundColor: 'rgba(13, 110, 253, 0.2)',
           borderColor: '#0d6efd',
           borderWidth: 2
         },
         {
           label: 'Expense',
-          data: expenseData,
+          data: [...new Set([...incomeLabels, ...expenseLabels])].map(cat => expenseMap[cat] || 0),
           backgroundColor: 'rgba(220, 53, 69, 0.2)',
           borderColor: '#dc3545',
           borderWidth: 2
@@ -205,74 +213,85 @@ function renderCategoryBreakdown() {
     }
   });
 
-  // Render Category Cards
-  const totalIncome = incomeData.reduce((a, b) => a + b, 0);
-  const totalExpense = expenseData.reduce((a, b) => a + b, 0);
-  const container = document.getElementById("categoryCards");
-  container.innerHTML = "";
-
-  labels.forEach((cat, i) => {
-    const incomeAmt = incomeMap[cat] || 0;
-    const expenseAmt = expenseMap[cat] || 0;
-
-    const incomePercentage = totalIncome ? ((incomeAmt / totalIncome) * 100).toFixed(1) : 0;
-    const expensePercentage = totalExpense ? ((expenseAmt / totalExpense) * 100).toFixed(1) : 0;
-
+  // Render Income Category Cards
+  const incomeTotal = incomeData.reduce((a, b) => a + b, 0);
+  const incomeContainer = document.getElementById("incomeCategoryCards");
+  incomeContainer.innerHTML = "";
+  incomeLabels.forEach(cat => {
+    const amt = incomeMap[cat];
+    const percentage = ((amt / incomeTotal) * 100).toFixed(1);
     const card = document.createElement("div");
-    card.className = "col-md-6 mb-3";
+    card.className = "col-md-4 mb-3";
     card.innerHTML = `
       <div class="card shadow-sm h-100">
         <div class="card-body text-center">
-          <h6 class="mb-1">${cat}</h6>
-          <div class="row">
-            <div class="col-6">
-              <canvas id="mini-income-${cat}" width="80" height="80"></canvas>
-              <small class="text-success">Income: ₹${incomeAmt.toFixed(2)} (${incomePercentage}%)</small>
-            </div>
-            <div class="col-6">
-              <canvas id="mini-expense-${cat}" width="80" height="80"></canvas>
-              <small class="text-danger">Expense: ₹${expenseAmt.toFixed(2)} (${expensePercentage}%)</small>
-            </div>
-          </div>
+          <canvas id="mini-income-${cat}" width="100" height="100"></canvas>
+          <h6 class="mt-2">${cat}</h6>
+          <p class="mb-0">₹${amt.toFixed(2)} / ₹${incomeTotal.toFixed(2)} (${percentage}%)</p>
         </div>
       </div>
     `;
-    container.appendChild(card);
+    incomeContainer.appendChild(card);
 
-    // Mini charts
-    const incomeCtx = document.getElementById(`mini-income-${cat}`).getContext("2d");
-    new Chart(incomeCtx, {
+    const miniCtx = document.getElementById(`mini-income-${cat}`).getContext("2d");
+    new Chart(miniCtx, {
       type: 'doughnut',
       data: {
         labels: [cat, "Remaining"],
         datasets: [{
-          data: [incomeAmt, totalIncome - incomeAmt],
+          data: [amt, incomeTotal - amt],
           backgroundColor: ['#0d6efd', '#e0e0e0']
         }]
       },
       options: {
-        plugins: { legend: { display: false } },
-        cutout: "70%"
+        plugins: {
+          legend: { display: false }
+        },
+        cutout: "70%",
       }
     });
+  });
 
-    const expenseCtx = document.getElementById(`mini-expense-${cat}`).getContext("2d");
-    new Chart(expenseCtx, {
+  // Render Expense Category Cards
+  const expenseTotal = expenseData.reduce((a, b) => a + b, 0);
+  const expenseContainer = document.getElementById("expenseCategoryCards");
+  expenseContainer.innerHTML = "";
+  expenseLabels.forEach(cat => {
+    const amt = expenseMap[cat];
+    const percentage = ((amt / expenseTotal) * 100).toFixed(1);
+    const card = document.createElement("div");
+    card.className = "col-md-4 mb-3";
+    card.innerHTML = `
+      <div class="card shadow-sm h-100">
+        <div class="card-body text-center">
+          <canvas id="mini-expense-${cat}" width="100" height="100"></canvas>
+          <h6 class="mt-2">${cat}</h6>
+          <p class="mb-0">₹${amt.toFixed(2)} / ₹${expenseTotal.toFixed(2)} (${percentage}%)</p>
+        </div>
+      </div>
+    `;
+    expenseContainer.appendChild(card);
+
+    const miniCtx = document.getElementById(`mini-expense-${cat}`).getContext("2d");
+    new Chart(miniCtx, {
       type: 'doughnut',
       data: {
         labels: [cat, "Remaining"],
         datasets: [{
-          data: [expenseAmt, totalExpense - expenseAmt],
+          data: [amt, expenseTotal - amt],
           backgroundColor: ['#dc3545', '#e0e0e0']
         }]
       },
       options: {
-        plugins: { legend: { display: false } },
-        cutout: "70%"
+        plugins: {
+          legend: { display: false }
+        },
+        cutout: "70%",
       }
     });
   });
 }
+
 
 
 
