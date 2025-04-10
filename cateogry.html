@@ -160,17 +160,14 @@
                       <!-- Income / Expense Dropdown -->
                       <div class="mb-3">
                           <label class="form-label">Transaction Type</label>
-                          <select class="form-select">
-                              <option value="Income">Income</option>
-                              <option value="Expense">Expense</option>
-                          </select>
+                          <select class="form-select" id="transactionType" onchange="loadCategories()">
+                            <option value="Income">Income</option>
+                            <option value="Expense" selected>Expense</option>
+                        </select>
+                        
                       </div>
   
-                      <!-- Amount Input -->
-                      <div class="mb-3">
-                          <label class="form-label">Amount Spent</label>
-                          <input type="number" class="form-control" placeholder="Enter amount">
-                      </div>
+                      
   
                       <!-- Date Input -->
                       <div class="mb-3">
@@ -179,65 +176,26 @@
                       </div>
   
                    <!-- Amount Input -->
-<div class="mb-3">
-  <label class="form-label" id="amountLabel">Amount Spent</label>
-  <input type="number" class="form-control" placeholder="Enter amount">
-</div>
+                  <div class="mb-3">
+                    <label class="form-label" id="amountLabel">Amount Spent</label>
+                    <input type="number" class="form-control" placeholder="Enter amount">
+                  </div>
 
-<!-- Paid To -->
-<div class="mb-3">
-  <label class="form-label" id="paidToLabel">Paid To</label>
-  <input type="text" class="form-control" placeholder="Enter recipient">
-</div>
+                  <!-- Paid To -->
+                  <div class="mb-3">
+                    <label class="form-label" id="paidToLabel">Paid To</label>
+                    <input type="text" class="form-control" placeholder="Enter recipient">
+                  </div>
 
   
                       <!-- Category Selection -->
                       <div class="mb-3">
                           <label class="form-label">Category</label>
-                          <div class="d-flex flex-wrap gap-2">
-                              <button type="button" class="btn btn-outline-primary" onclick="selectCategory(this)">
-                                  <i class="bi bi-receipt"></i> Bills
-                              </button>
-                              <button type="button" class="btn btn-outline-primary" onclick="selectCategory(this)">
-                                  <i class="bi bi-credit-card"></i> EMI
-                              </button>
-                              <button type="button" class="btn btn-outline-primary" onclick="selectCategory(this)" >
-                                  <i class="bi bi-film"></i> Entertainment
-                              </button>
-                              <button type="button" class="btn btn-outline-primary" onclick="selectCategory(this)" >
-                                  <i class="bi bi-cup-straw"></i> Food & Drinks
-                              </button>
-                              <button type="button" class="btn btn-outline-primary" onclick="selectCategory(this)" >
-                                  <i class="bi bi-fuel-pump"></i> Fuel
-                              </button>
-                              <button type="button" class="btn btn-outline-primary" onclick="selectCategory(this)" >
-                                  <i class="bi bi-basket"></i> Groceries
-                              </button>
-                              <button type="button" class="btn btn-outline-primary" onclick="selectCategory(this)" >
-                                  <i class="bi bi-heart-pulse"></i> Health
-                              </button>
-                              <button type="button" class="btn btn-outline-primary" onclick="selectCategory(this)" >
-                                  <i class="bi bi-graph-up-arrow"></i> Investment
-                              </button>
-                              <button type="button" class="btn btn-outline-primary" onclick="selectCategory(this)" >
-                                  <i class="bi bi-tags"></i> Other
-                              </button>
-                              <button type="button" class="btn btn-outline-primary" onclick="selectCategory(this)" >
-                                  <i class="bi bi-bag"></i> Shopping
-                              </button>
-                              <button type="button" class="btn btn-outline-primary" onclick="selectCategory(this)" >
-                                  <i class="bi bi-arrow-left-right"></i> Transfer
-                              </button>
-                              <button type="button" class="btn btn-outline-primary" onclick="selectCategory(this)" >
-                                  <i class="bi bi-airplane"></i> Travel
-                              </button>
-                              <button type="button" class="btn btn-outline-primary" onclick="selectCategory(this)" >
-                                  <i class="bi bi-gift"></i> Gift
-                              </button>
-                              <button type="button" class="btn btn-outline-primary" onclick="selectCategory(this)" >
-                                  <i class="bi bi-wrench"></i> Service
-                              </button>
-                          </div>
+                          <div class="d-flex flex-wrap gap-2" id="categoryButtons">
+                            <!-- Dynamic category buttons will appear here -->
+                        </div>
+                        
+
                       </div>
   
                       <!-- Optional Fields -->
