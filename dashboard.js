@@ -156,23 +156,42 @@ function searchTransactions() {
 }
 
 function updateReviewButton() {
-  const now = new Date();
-  const month = now.toLocaleString("default", { month: "short" });
-  const year = now.getFullYear().toString().slice(-2);
+  const filter = document.getElementById("filterSelect").value;
+  const range = getDateRangeForFilter(filter);
+
+  let label = "";
+
+  if (filter === "custom") {
+    const start = document.getElementById("startDate").value;
+    const end = document.getElementById("endDate").value;
+    label = `${formatDate(start)} to ${formatDate(end)}`;
+  } else {
+    label = `${capitalizeFirstLetter(filter)} (${range.from} to ${range.to})`;
+  }
 
   const btn = document.getElementById("reviewButton");
-  btn.innerText = `Add Review (${month} '${year})`;
+  btn.innerText = `Review ${label}`;
   btn.onclick = () => {
-    const filter = document.getElementById("filterSelect").value;
-    const range = getDateRangeForFilter(filter);
     window.location.href = `category.html?filter=${filter}&from=${range.from}&to=${range.to}`;
   };
 }
+
+function formatDate(dateStr) {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: '2-digit' });
+}
+
+function capitalizeFirstLetter(str) {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
 
 function onFilterChange() {
   const isCustom = document.getElementById("filterSelect").value === "custom";
   document.getElementById("customDateRange").style.display = isCustom ? "flex" : "none";
   if (!isCustom) updateChart();
+  updateReviewButton();
+
 }
 
 function toggleIncome() {

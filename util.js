@@ -5,6 +5,25 @@ function formatDate(date) {
     return new Date(date).toISOString().split("T")[0];
   }
   
+
+  function getFilteredTransactions() {
+    const allTransactions = JSON.parse(localStorage.getItem("transactions")) || [];
+    const { from, to } = getQueryParams();
+  
+    if (!from || !to) return allTransactions;
+  
+    const startDate = new Date(from);
+    const endDate = new Date(to);
+    endDate.setHours(23, 59, 59, 999); // include the entire end day
+  
+    return allTransactions.filter(tx => {
+      const txDate = new Date(tx.date);
+      return txDate >= startDate && txDate <= endDate;
+    });
+  }
+  
+
+
   // 📦 Load all transactions
   function getTransactions() {
     return JSON.parse(localStorage.getItem("transactions")) || [];
